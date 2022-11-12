@@ -11,6 +11,7 @@ class SimpleModeSimulation(Simulation):
     super().__init__(mempoolData, blocksData, isDynamic, firstBlockHeightOfSimulation, problematicIntervals, step, beta)
     self._remainingTxs = remainingTxs
     self._feeIndexInRanges = feeIndexInRanges
+    self._currentFee = self._getAllFeeRanges()[feeIndexInRanges]
 
   def run(self):
     tx_distribution = []
@@ -28,7 +29,7 @@ class SimpleModeSimulation(Simulation):
             is_in_problematic_interval = self._isInProblematicInterval(timestamp)
             if not is_in_problematic_interval and total_tx_count < self._lastTotalTxCount:
 
-                logging.info(f"[INFO] New Block (#{self._firstHeight + self._blocksCounter}) detected")
+                logging.info(f"[INFO] New Block (#{self._firstHeight + self._blocksCounter}) detected") # TODO: use timestamps for blocks
                 
                 # New Block detected
                 self._blocksCounter += 1

@@ -42,3 +42,6 @@ class Simulation():
       if timestamp >= interval[0] and timestamp < interval[1]:
         return True
     return False
+
+  def _getAllFeeRanges(self):
+    return fee_ranges  
