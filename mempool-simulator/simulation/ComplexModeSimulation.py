@@ -10,7 +10,6 @@ class ComplexModeSimulation(Simulation):
     self._txToBeAdded = [0] * len(fee_ranges)
     self._currentMempoolIndex = 0
     self._confirmedTxCount = 0
-    self._noneTxsPerFeeLevel = []
 
   def getTxWithSameFee(self, feeIndex):
     return self._lastTxCountPerFeeLevel[feeIndex] + self._txToBeAdded[feeIndex] 
@@ -29,16 +28,15 @@ class ComplexModeSimulation(Simulation):
   
   def _getFullTxCountPerFeeLevel(self, txsWithNumGreaterThanOne):
     full_tx_count_per_fee_level = [0] * len(fee_ranges)
-    
+
     for i in range(len(fee_ranges)):
       full_tx_count_per_fee_level[i] += txsWithNumGreaterThanOne[i] + self._lastTxCountPerFeeLevel[i] + self._txToBeAdded[i]
       if len(self._userTxsPerFeeLevel[i]) > 0:
-        full_tx_count_per_fee_level[i] += (len(self._userTxsPerFeeLevel[i]) - self._noneTxsPerFeeLevel[i])
+        full_tx_count_per_fee_level[i] += (len(self._userTxsPerFeeLevel[i]) )
     return full_tx_count_per_fee_level
 
   def _findTxsToBeAdded(self, starting_fee_index, amount):
     index = starting_fee_index
-
     while amount > 0 and index >= 0:
       if(self._lastTxCountPerFeeLevel[index] >= amount):
         self._txToBeAdded[index] += amount
@@ -49,11 +47,14 @@ class ComplexModeSimulation(Simulation):
       index -= 1
 
   def _decreaseTxWithSameFee(self, fee_index, amount):
-
     self._txToBeAdded[fee_index] = max(self._txToBeAdded[fee_index] - amount, 0)
-
     for tx in list(filter(lambda tx: tx is not None, self._userTxsPerFeeLevel[fee_index])):
-      tx.txWithSameFee = max(tx.txWithSameFee - amount, 0)    
+      tx.txWithSameFee = max(tx.txWithSameFee - amount, 0)   
+
+  def allUserTxsConfirmed(self):
+    for txs in self._userTxsPerFeeLevel:
+      if len(txs) > 0: return False    
+    return True    
   
   def getConfirmedTxCount(self):
     return self._confirmedTxCount
@@ -71,13 +72,13 @@ class ComplexModeSimulation(Simulation):
 
   def run(self):
     snapshot = self._mempoolData[self._currentMempoolIndex]
-    self._currentMempoolIndex += 1
 
     timestamp = snapshot[0]
     tx_count_per_fee_level = snapshot[1]
     total_tx_count = sum(tx_count_per_fee_level)
 
     if self._lastTotalTxCount is None and self._lastTxCountPerFeeLevel is None:
+      # First snapshot
       self._lastTxCountPerFeeLevel = tx_count_per_fee_level
       self._lastTotalTxCount = total_tx_count
       return
@@ -91,17 +92,17 @@ class ComplexModeSimulation(Simulation):
       
       #print(f"[INFO] New Block (#{self._firstHeight + self._blocksCounter}) detected")
 
-      # On new block, we compute the number of transactions with a fee that is higher than LN txs
-      # If this number is higher than the number of transactions in the block, no LN txs are confirmed in this block.
-      # Otherwise, some LN txs could be included in the block, and we must check their current "position" in the mempool
+      # On new block, we compute the number of transactions with a fee that is higher than user' txs
+      # If this number is higher than the number of transactions in the block, no user txs are confirmed in this block.
+      # Otherwise, some user txs could be included in the block, and we must check their current "position" in the mempool
       # at their fee level, i.e. how many txs there are in the same fee level that were submitted before them.
 
       self._blocksCounter += 1
       
       num_tx_in_block = self._blocksData[(self._firstBlockHeightOfSimulation - self._firstHeight + self._blocksCounter) - 1]["n_transactions"]
       
-      # As said before, LN txs actually "replace" standard txs that would have been removed from the mempool
-      # without LN txs, therefore they must be re-added and considered for future blocks.
+      # As said before, user txs actually "replace" standard txs that would have been removed from the mempool
+      # without user txs, therefore they must be re-added and considered for future blocks.
       amount_tx_to_be_added = 0
       starting_index_tx_to_be_added = 0
 
@@ -114,32 +115,28 @@ class ComplexModeSimulation(Simulation):
           break
         i -= 1
 
-      index = len(self._lastTxCountPerFeeLevel) - 1
-      tx_with_higher_fee = 0
+      index = len(self._lastTxCountPerFeeLevel) - 1      
+      confirmed_txs = 0
 
-      # Now we confirm transactions that have an higher fee than our LN txs
-      while index > highest_user_fee_index and tx_with_higher_fee < num_tx_in_block:
-        tmp = tx_with_higher_fee
-        tx_with_higher_fee = tx_with_higher_fee + self._lastTxCountPerFeeLevel[index] + self._txToBeAdded[index]
-
-        # Here we don't call decreaseTxWithSameFee because there are no LN txs in this fee level
+      # Now we confirm transactions that have an higher fee than our user txs
+      while index > highest_user_fee_index and confirmed_txs < num_tx_in_block:
+        # Here we don't call decreaseTxWithSameFee because there are no user txs in this fee level
         # by construction (fee_index > highest_ln_fee_index)
+        space_in_block = num_tx_in_block - confirmed_txs
+        n_txs = self._lastTxCountPerFeeLevel[index] + self._txToBeAdded[index]
 
-        self._txToBeAdded[index] = max(self._txToBeAdded[index] - (num_tx_in_block - tmp), 0)
+        if n_txs <= space_in_block:
+          self._txToBeAdded[index] = 0
+          confirmed_txs += n_txs
+        else:
+          self._txToBeAdded[index] = max(self._txToBeAdded[index] - space_in_block, 0)
+          confirmed_txs = num_tx_in_block
         index -= 1
 
-      tx_to_be_confirmed = num_tx_in_block - tx_with_higher_fee
+      tx_to_be_confirmed = num_tx_in_block - confirmed_txs
 
       if tx_to_be_confirmed > 0:
-
-        # We put None placeholder values in the `ln_txs_per_fee_level` array to remove confirmed ln txs after
-        # all the txs that are included in the block are computed, therefore the None txs must not be taken into
-        # consideration when we compute the average fee for new victim transactions. Using `filter` on None values
-        # slows down too much the simulation, thus it's more efficient to keep track of the number of None values
-        # for each fee level and then subtracting their number when needed.
         
-        self._noneTxsPerFeeLevel = [0] * len(fee_ranges)
-
         # There is still "space" for more transactions in the block
     
         fee_index = highest_user_fee_index
@@ -148,7 +145,7 @@ class ComplexModeSimulation(Simulation):
             
           user_txs = self._userTxsPerFeeLevel[fee_index]
 
-          if len(user_txs) > 0: # If there are LN txs in this fee level
+          if len(user_txs) > 0: # If there are user txs in this fee level
             tx_index = 0
 
             while tx_index < len(user_txs) and tx_to_be_confirmed > 0:
@@ -158,6 +155,7 @@ class ComplexModeSimulation(Simulation):
               if tx.txWithSameFee >= tx_to_be_confirmed:
                 self._decreaseTxWithSameFee(fee_index, tx_to_be_confirmed)
                 tx_to_be_confirmed = 0
+                break # no more txs to confirm
               else:
                 if tx.txWithSameFee > 0:
                   tx_to_be_confirmed -= tx.txWithSameFee
@@ -174,8 +172,9 @@ class ComplexModeSimulation(Simulation):
                 if tx.num == 0:
                   tx.confirmed = True
                   tx.confirmedBlockNumber = self._blocksCounter
+                  # We put None placeholder values in the `ln_txs_per_fee_level` array to remove confirmed user txs after
+                  # all the txs that are included in the block are computed
                   self._userTxsPerFeeLevel[fee_index][tx_index] = None
-                  self._noneTxsPerFeeLevel[fee_index] += 1
               else:
                 tx.confirmed = True
                 tx.confirmedBlockNumber = self._blocksCounter
@@ -183,7 +182,6 @@ class ComplexModeSimulation(Simulation):
                 amount_tx_to_be_added += 1
                 starting_index_tx_to_be_added = tx.feeIndex 
                 self._userTxsPerFeeLevel[tx.feeIndex][tx_index] = None
-                self._noneTxsPerFeeLevel[tx.feeIndex] += 1
                 self._confirmedTxCount += 1
 
               tx_index += 1
@@ -196,7 +194,6 @@ class ComplexModeSimulation(Simulation):
           
           fee_index -= 1
         
-
         for i in range(len(self._userTxsPerFeeLevel)):
           self._userTxsPerFeeLevel[i] = list(filter(lambda tx: tx is not None, self._userTxsPerFeeLevel[i]))
               
@@ -218,7 +215,7 @@ class ComplexModeSimulation(Simulation):
         for fee_index in range(len(self._userTxsPerFeeLevel)):
             for tx_index in range(len(self._userTxsPerFeeLevel[fee_index])):
                 tx = self._userTxsPerFeeLevel[fee_index][tx_index]
-                if tx.confirmed or not tx.dynamic: #tx.isAttacker or tx.attackerTxConfirmedBlockNumber == self._blocksCounter: # TODO: should attacker use RBF?
+                if tx.confirmed or not tx.dynamic: # TODO: should attacker use RBF?
                     continue
                 new_fee = tx.currentFee * self._beta
                 tx.currentFee = new_fee
@@ -240,3 +237,4 @@ class ComplexModeSimulation(Simulation):
 
     self._lastTotalTxCount = total_tx_count
     self._lastTxCountPerFeeLevel = tx_count_per_fee_level
+    self._currentMempoolIndex += 1

@@ -8,6 +8,7 @@ class MassExitTransaction(Transaction):
     super().__init__(num, isDynamic)
     self._isAttacker = isAttacker
     self._attackerTxConfirmedBlockNumber = -1
+    self._penaltyTxIndex = -1 # if isAttacker and is second attacker tx
 
   @property
   def isAttacker(self):
@@ -24,3 +25,11 @@ class MassExitTransaction(Transaction):
   @attackerTxConfirmedBlockNumber.setter
   def attackerTxConfirmedBlockNumber(self, attackerTxConfirmedBlockNumber):
     self._attackerTxConfirmedBlockNumber = attackerTxConfirmedBlockNumber
+
+  @property
+  def penaltyTxIndex(self):
+    return self._penaltyTxIndex
+    
+  @penaltyTxIndex.setter
+  def penaltyTxIndex(self, penaltyTxIndex):
+    self._penaltyTxIndex = penaltyTxIndex
