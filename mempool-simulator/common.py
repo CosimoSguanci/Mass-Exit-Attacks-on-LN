@@ -15,6 +15,9 @@ MEMPOOL_DIR_NO_CONGESTION = "../mempool-no-congestion"
 LMC_MAX_EDGES = 63251
 LWMC_MAX_CAPACITY = 246436727385
 
+LMC_MAX_CAPACITY = 203354492615
+LWMC_MAX_EDGES = 58531
+
 NEO4J_MAX_CUT_EDGES_UNWEIGHTED = 62249
 NEO4J_MAX_CUT_CAPACITY_WEIGHTED = 258711667453
 
@@ -96,6 +99,12 @@ def get_lmc_max_edges():
 
 def get_lwmc_max_capacity():
   return LWMC_MAX_CAPACITY
+
+def get_lmc_max_capacty():
+  return LMC_MAX_CAPACITY
+
+def get_lwmc_max_edges():
+  return LWMC_MAX_EDGES    
 
 def get_neo4j_max_edges_unweighted():
   return NEO4J_MAX_CUT_EDGES_UNWEIGHTED
