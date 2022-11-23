@@ -4,7 +4,12 @@ fee_ranges =  [0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 12, 14, 17, 20, 25, 30, 40, 50, 60
 
 class Simulation():
 
-  def __init__(self, mempoolData, blocksData, isDynamic, firstBlockHeightOfSimulation, problematicIntervals, step, beta):
+  # Used when we are in a scenario of low congestion, since then if we add
+  # many transactions, it becomes a scenario of high congestion and we cannot use 
+  # blocks historical data in the analyzed time window
+  _DEFAULT_N_TRANSACTIONS = 2023 
+
+  def __init__(self, mempoolData, blocksData, isDynamic, useHistoricalBlocksData, firstBlockHeightOfSimulation, problematicIntervals, step, beta):
     self._dynamic = isDynamic
     self._mempoolData = mempoolData
     self._blocksData = blocksData
@@ -16,14 +21,25 @@ class Simulation():
     self._blocksCounter = 0
     self._lastTxCountPerFeeLevel = None 
     self._lastTotalTxCount = -1
+    self._useHistoricalBlocksData = useHistoricalBlocksData
 
   @property
   def blocksCounter(self):
     return self._blocksCounter
+
+  @abc.abstractmethod
+  def _processBlock(self):
+    return  
   
   @abc.abstractmethod
   def run(self):
     return
+
+  def _getTransactionsInNextBlock(self):
+    if self._useHistoricalBlocksData:
+        return self._blocksData[(self._firstBlockHeightOfSimulation - self._firstHeight + self._blocksCounter)]["n_transactions"]
+    else:
+        return self._DEFAULT_N_TRANSACTIONS  
 
   def _findIndexOfFeeInRanges(self, fee):
     fee_index = 0

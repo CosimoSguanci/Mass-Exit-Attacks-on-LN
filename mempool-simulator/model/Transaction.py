@@ -1,12 +1,4 @@
 class Transaction:
-  # _submitted = False
-  # _confirmed = False
-  # _confirmedBlockNumber = -1
-  # _feeIndex = -1
-  # _currentFee = -1
-  # _txWithSameFee = -1
-  # _num = 1
-  # _dynamic = False
   
   def __init__(self, num, isDynamic):
     self._submitted = False
@@ -32,15 +24,7 @@ class Transaction:
     
   @confirmed.setter
   def confirmed(self, confirmed):
-    self._confirmed = confirmed
-    
-  #@property
-  #def submittedBlockNumber(self):
-    #return self._submittedBlockNumber
-    
-  #@submittedBlockNumber.setter
-  #def submittedBlockNumber(self, submittedBlockNumber):
-    #self._submittedBlockNumber = submittedBlockNumber    
+    self._confirmed = confirmed  
 
   @property
   def confirmedBlockNumber(self):

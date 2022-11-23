@@ -1,8 +1,6 @@
 from model.Transaction import Transaction
 
 class MassExitTransaction(Transaction):
-  # _isAttacker = False
-  # _attackerTxConfirmedBlockNumber = -1
   
   def __init__(self, isAttacker, num, isDynamic):
     super().__init__(num, isDynamic)
