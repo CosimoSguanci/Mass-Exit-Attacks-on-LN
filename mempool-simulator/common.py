@@ -12,6 +12,8 @@ FIRST_BLOCK_HEIGHT_NO_CONGESTION = 716644
 MEMPOOL_DIR_DURING_CONGESTION = "../mempool-during-congestion"
 MEMPOOL_DIR_NO_CONGESTION = "../mempool-no-congestion"
 
+AVG_CAPACITY_PER_CHANNEL = 0.045 
+
 LMC_MAX_EDGES = 63251
 LWMC_MAX_CAPACITY = 246436727385
 
@@ -117,6 +119,9 @@ def get_lmc_results():
 
 def get_lwmc_results():
   return LWMC_RESULTS_K
+
+def get_avg_capacity_per_channel():
+  return AVG_CAPACITY_PER_CHANNEL
 
 def doPreprocessing(mempool_dir): # returns mempool data (preprocessed) 
   MEMPOOL_DIR = mempool_dir
